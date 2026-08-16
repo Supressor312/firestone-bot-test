@@ -59,6 +59,7 @@ SettingsMap["Dust"] := ["QoL/RareOptions", 0]
 SettingsMap["DragonBlood"] := ["QoL/RareOptions", 0]
 SettingsMap["Coin"] := ["QoL/RareOptions", 0]
 SettingsMap["Research"] := ["QoL/RareOptions", 0]
+SettingsMap["ResearchDirection"] := ["QoL/RareOptions", "Left"]
 SettingsMap["SkipOracle"] := ["QoL/RareOptions", 0]
 SettingsMap["NoHero"] := ["QoL/RareOptions", 0]
 SettingsMap["NextMilestone"] := ["QoL/RareOptions", 0]
@@ -116,7 +117,7 @@ Gui, Font, s10, Segoe UI
 Gui, Color, White
 
 ; Tabs Structure
-Gui, Add, Tab3, x0 y0 w960 h750, Home|General Options|Guild && Personal Tree|War Machines|Settings
+Gui, Add, Tab3, x0 y0 w960 h790, Home|General Options|Guild && Personal Tree|War Machines|Settings
 ; ------------------------------------------------------------------------------
 ; TAB 1: HOME (INSTRUCTIONS & START)
 ; ------------------------------------------------------------------------------
@@ -184,11 +185,22 @@ Gui, Tab, 2
     Gui, Add, Radio, y+10 vSellNone Checked%SellNone%, 4. Sell Nothing
 
     ; --- Other Automation ---
-    Gui, Add, GroupBox, x20 y400 w300 h300, Other Automation
+;    Gui, Add, GroupBox, x20 y400 w300 h300, Other Automation
+;    Gui, Add, Checkbox, xp+15 yp+30 vNoEng Checked%NoEng%, Skip Engineer
+;    Gui, Add, Checkbox, y+10 vResearch Checked%Research%, Skip Research
+;    Gui, Add, Checkbox, y+10 vDisableWarning Checked%DisableWarning%, Disable Steam Warning
+
+
+    Gui, Add, GroupBox, x20 y400 w300 h360, Other Automation
     Gui, Add, Checkbox, xp+15 yp+30 vNoEng Checked%NoEng%, Skip Engineer
     Gui, Add, Checkbox, y+10 vResearch Checked%Research%, Skip Research
+    Gui, Add, Text, y+10, Research Scan Direction:
+    Gui, Add, DropDownList, w260 vResearchDirection, Left||Right
+    if (ResearchDirection != "")
+        GuiControl, ChooseString, ResearchDirection, %ResearchDirection%
     Gui, Add, Checkbox, y+10 vDisableWarning Checked%DisableWarning%, Disable Steam Warning
-    Gui, Add, Checkbox, y+10 vRestartGame Checked%RestartGame%, Restart Game
+
+  Gui, Add, Checkbox, y+10 vRestartGame Checked%RestartGame%, Restart Game
     Gui, Add, Checkbox, y+10 vRestartGameTest Checked%RestartGameTest%, Try the game restart at the beginning
     Gui, Add, Text, y+15, Restart Game Every X Hours:
     Gui, Add, DropDownList, w260 vRestartGameTime, 6||12|18|24
@@ -402,7 +414,7 @@ Gui, Tab, 5
     Gui, Add, Edit, x+10 w250 vDiscordID, %DiscordID%
     Gui, Add, Text, x60 y+10 w400,
 
-Gui, Show, w960 h750, Firestone Bot %FirestoneBotVersion%
+Gui, Show, w960 h790, Firestone Bot %FirestoneBotVersion%
 Return
 
 ; ==============================================================================

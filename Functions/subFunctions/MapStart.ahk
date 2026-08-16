@@ -1,12 +1,27 @@
 ﻿#Include Functions\subFunctions\BigClose.ahk
 #Include Functions\subFunctions\MapClose.ahk
 
+; =====================================================================================
+; ПАТЧ (см. чат): 2-Squad миссии теперь ВСЕГДА проходятся первыми и НЕ запоминаются
+; в MapStartState.ini. Все остальные категории (War/Medium/Short/Leftover) работают
+; как раньше - через память ClickedPoints. Координаты миссий НЕ менялись.
+; Изменения помечены комментариями "НОВОЕ" / "ОТКАЧЕНО" по тексту файла.
+; Новая функция RunPriorityPass() добавлена в самом низу файла.
+; =====================================================================================
+
 MapStart(){
     stateFile := "MapStartState.ini"
 
     ; --- 1. Memory and Timer Management ---
     IniRead, SessionStart, %stateFile%, Memory, SessionStart, %A_Space%
     IniRead, ClickedPoints, %stateFile%, Memory, ClickedPoints, %A_Space%
+
+    ; ОТКАЧЕНО: раньше здесь стояла строка "ClickedPoints := """, которая принудительно
+    ; обнуляла память при КАЖДОМ вызове MapStart() (бот кликал заново вообще всё, каждый раз).
+    ; Теперь память снова читается из ini как в оригинале - см. блок "Main Loop" ниже.
+    ; Единственное исключение - 2-Squad, для них "с нуля" происходит всегда,
+    ; но реализовано это отдельно через RunPriorityPass() (ищи "НОВОЕ" ниже), а не этой строкой.
+    ; ClickedPoints := ""
 
     ; If it's the first time or empty, initialize
     if (SessionStart = "" or SessionStart = 0) {
@@ -20,9 +35,9 @@ MapStart(){
 
     ; --- 2. Mission Definitions ---
     Squad2 := []
-    Squad2.Insert(Object("x",384,"y",1009)) ; Pirate Cove
+    Squad2.Insert(Object("x",403,"y",1009)) ; Pirate Cove
     Squad2.Insert(Object("x",484,"y",920)) ; Dragon Island
-    Squad2.Insert(Object("x",543,"y",1032)) ; Hydra
+    Squad2.Insert(Object("x",550,"y",1040)) ; Hydra
     Squad2.Insert(Object("x",633,"y",576)) ; Dragon's Cave
     Squad2.Insert(Object("x",616,"y",204)) ; Frostfire Gorge
     Squad2.Insert(Object("x",1150,"y",340)) ; Irongard's Harbor
@@ -40,6 +55,19 @@ MapStart(){
     Squad2.Insert(Object("x",1290,"y",99))
     Squad2.Insert(Object("x",1177,"y",35))
     Squad2.Insert(Object("x",1104,"y",43))
+
+    ; НОВОЕ: приоритетный проход по 2-Squad, всегда первым, БЕЗ памяти.
+    ; RunPriorityPass() (определена в конце файла) кликает по каждой точке из Squad2,
+    ; проверяет кнопку старта и наличие свободных войск - точно так же, как основной
+    ; цикл ниже по коду, но НИЧЕГО не пишет в ClickedPoints / MapStartState.ini.
+    ; Поэтому 2-Squad миссии перепроверяются заново при КАЖДОМ вызове MapStart(),
+    ; независимо от того, что сохранено в памяти для остальных категорий.
+    TroopsLeftAfterSquad2 := RunPriorityPass(Squad2)
+    If (TroopsLeftAfterSquad2 = 0){
+        ; Свободных войск больше нет - как и в оригинальной логике, поиск миссий останавливается полностью.
+        Return
+    }
+
     War := []
     War.Insert(Object("x",672,"y",423)) ; Tipsy Wisp Tavern
     War.Insert(Object("x",720,"y",675)) ; Ambush in the Trees
@@ -103,6 +131,7 @@ MapStart(){
     Leftover.Insert(Object("x",1221,"y",467))
     Leftover.Insert(Object("x",742,"y",389))
     Leftover.Insert(Object("x",967,"y",547))
+    Leftover.Insert(Object("x",511,"y",196))
 
     ; --- 3. Priority List Construction ---
     Point := []
@@ -116,8 +145,16 @@ MapStart(){
     Priorities := [P1, P2, P3, P4, P5]
     For index, type in Priorities {
         currentList := ""
-        If (type = "2 Squad")
-            currentList := Squad2
+        If (type = "2 Squad"){
+            ; ОТКАЧЕНО/ИЗМЕНЕНО: раньше здесь было "currentList := Squad2", т.е. 2-Squad точки
+            ; попадали в общий список Point[] и обрабатывались основным циклом (с памятью).
+            ; currentList := Squad2
+            ;
+            ; НОВОЕ: 2-Squad уже обработаны выше через RunPriorityPass(Squad2) ДО этого блока,
+            ; поэтому здесь их специально НЕ добавляем в Point[] - иначе будет задвоение клика
+            ; и они попадут под память ClickedPoints, чего мы как раз хотим избежать.
+            currentList := ""
+        }
         Else If (type = "War")
             currentList := War
         Else If (type = "Medium")
@@ -138,6 +175,8 @@ MapStart(){
     ; --- 4. Main Loop (Max 2 attempts) ---
     ; Attempt 1: Skip what is in memory.
     ; Attempt 2: If troops remain at the end, clear memory and redo everything.
+    ; (Эта часть - War/Medium/Short/Leftover - работает как в оригинале, с памятью ClickedPoints.
+    ;  2-Squad сюда больше не попадает, см. пункт 3 выше.)
     Loop, 2
     {
         AttemptNum := A_Index
@@ -216,4 +255,62 @@ MapStart(){
         ; If attempt 2 finished or no troops, stop.
         Break
     }
+}
+
+; =====================================================================================
+; НОВОЕ: RunPriorityPass(MissionList)
+; Общая функция (не завязана на конкретные координаты) для прогона списка миссий БЕЗ памяти.
+; Логика 1-в-1 повторяет внутренний цикл основного блока выше (клик -> проверка кнопки Start ->
+; проверка свободных войск -> MapClose если миссия занята), но:
+;   - НЕ проверяет ClickedPoints (никогда не пропускает точку по памяти)
+;   - НЕ пишет ничего в MapStartState.ini (ничего не запоминает между вызовами)
+; Используется сейчас только для Squad2, но написана универсально - можно передать
+; любой другой массив объектов {x,y}, если в будущем понадобится так же "без памяти"
+; проходить, например, War или любую новую категорию миссий.
+;
+; Возвращает:
+;   1 - список пройден, свободные войска ещё остались (можно продолжать основной список)
+;   0 - свободных войск больше нет (вызывающий код должен полностью остановить MapStart)
+; =====================================================================================
+RunPriorityPass(MissionList){
+    Loop, % MissionList.MaxIndex()
+    {
+        idx := A_Index
+        x := MissionList[idx].x
+        y := MissionList[idx].y
+
+        ControlFocus,, ahk_exe Firestone.exe
+        Click %x%, %y%
+        Sleep, 1000
+
+        ; Check Start Button (Green) - идентично основному циклу выше
+        PixelSearch, X, Y, 953, 822, 1205, 898, 0x0AA008, 10, Fast RGB
+        If (ErrorLevel = 0){
+            MouseMove, 1084, 865
+            Sleep, 500
+            Click
+            Sleep, 500
+
+            ; Check Troops (Brown Pixel)
+            PixelSearch, X, Y, 1175, 996, 1187, 1012, 0x542710, 10, Fast RGB
+            If (ErrorLevel = 0){
+                ; Troops available -> continue to next point in this list
+                Continue
+            } Else {
+                ; No more troops -> сигнализируем вызывающему коду остановиться полностью
+                Return 0
+            }
+        } Else {
+            ; No start button (миссия уже занята/недоступна) -> закрываем попап
+            MapClose()
+        }
+
+        ; Check Troops after each interaction (even if not started)
+        PixelSearch, X, Y, 1175, 996, 1187, 1012, 0x542710, 10, Fast RGB
+        If (ErrorLevel != 0){
+            Return 0
+        }
+    }
+    ; Список пройден целиком, войска ещё могут оставаться - основной код проверит это сам дальше.
+    Return 1
 }

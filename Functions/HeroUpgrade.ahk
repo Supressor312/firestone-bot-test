@@ -59,12 +59,12 @@ HeroUpgrade(){
             {
                 ; Found the toggle button color indicating we are NOT on max/milestone yet?
                 ; Or clicking to toggle. Based on your code, this clicks until satisfied.
-                MouseClick, Left, 1599, 951, 1, 0
+                MouseClick, Left, 1599, 971, 1, 0
                 Sleep, 300
                 break
             }
             ; Try clicking to switch mode
-            MouseClick, Left, 1599, 951, 1, 0
+            MouseClick, Left, 1599, 971, 1, 0
             Sleep, 300
             Count++
             if (Count >= MaxTries)
