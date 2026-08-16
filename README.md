@@ -1,6 +1,6 @@
-# Firestone Bot (Deaeth85's Version)
+# Firestone Bot
 
-**Version:** 6.1.0
+**Version:** 6.1.0_v9.1.0a
 
 An AutoHotkey (AHK) automation script for the game **Firestone**. This bot automates daily routines, missions, upgrades, and various in-game activities to maximize efficiency.
 
@@ -100,7 +100,7 @@ Fully customizable priority order for map missions (1st to 5th priority):
 ## 🚀 How to Use
 1.  Download bot in release.
 2.  Ensure your game settings match the **Requirements** section above exactly.
-3.  Run `firestone-bot.exe` 
+3.  Run `firestone-bot.ahk` 
 4.  Configure your desired settings in the tabs.
 5.  Click **"SAVE SETTINGS"** to store your configuration.
 6.  Click **"START BOT"**.
